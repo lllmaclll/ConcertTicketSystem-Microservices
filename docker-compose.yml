@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # 1. ฐานข้อมูลหลัก (PostgreSQL)
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: ticket_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ticketdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ticketdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. ระบบ Cache และ Distributed Lock (Redis)
+  redis_cache:
+    image: redis:alpine
+    container_name: ticket_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # 3. Message Broker (RabbitMQ พร้อมหน้า UI จัดการ)
+  rabbitmq_broker:
+    image: rabbitmq:3-management-alpine
+    container_name: ticket_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # Port สำหรับให้ Service คุยกัน
+      - "15672:15672" # Port สำหรับหน้าเว็บ UI ของ RabbitMQ
+    restart: always
+
+  # 4. pgAdmin สำหรับจัดการฐานข้อมูล PostgreSQL ผ่านเว็บ UI
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ticket_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ticket.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres_db
+    restart: always
+
+  # 5. Redis UI ตรงนี้
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: ticket_redisinsight
+    ports:
+      - "5540:5540"
+    restart: always
+
+  # 6. Service ของเรา
+  service-a:
+    build: ./src/ServiceA
+    container_name: service-a
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres_db;Port=5432;Database=ticketdb;Username=admin;Password=password123
+    depends_on:
+      postgres_db:
+        condition: service_healthy # รอจนกว่า DB จะ Healthy จริงๆ ถึงจะเริ่มรัน API
+      redis_cache:
+        condition: service_started
+      rabbitmq_broker:
+        condition: service_started
+    ports:
+      - "5018:5018"
+      - "5019:5019"
+
+  service-b:
+    build: ./src/ServiceB
+    container_name: service-b
+    depends_on:
+      - rabbitmq_broker
+      - service-a
+
+  api-gateway:
+    build: ./src/ApiGateway
+    container_name: api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5177:8080" # เปลี่ยนเลขตัวหลังเป็น 8080 (เพื่อให้ตรงกับที่ .NET รันข้างใน)
+    depends_on:
+      - service-a
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ticket_jaeger
+    ports:
+      - "16686:16686" # หน้าเว็บ UI สำหรับดูกราฟ
+      - "4317:4317"   # พอร์ตสำหรับรับข้อมูลจาก C# / Node.js (OTLP)
+    restart: always
+
+volumes:
+  postgres_data:

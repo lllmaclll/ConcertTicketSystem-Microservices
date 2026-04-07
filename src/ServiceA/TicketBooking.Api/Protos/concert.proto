@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+// ตั้งชื่อโฟลเดอร์จำลองให้ C#
+option csharp_namespace = "TicketBooking.Api.Grpc";
+
+package concert;
+
+// 1. กำหนดชื่อบริการ (Service)
+service ConcertInfo {
+  rpc GetConcertDetail (ConcertRequest) returns (ConcertReply);
+}
+
+// 2. ข้อมูลที่ Node.js จะส่งมาถาม (ขอข้อมูลคอนเสิร์ต)
+message ConcertRequest {
+  string concertId = 1;
+}
+
+// 3. ข้อมูลที่ C# จะตอบกลับไป (ชื่อและวันที่)
+message ConcertReply {
+  string concertName = 1;
+  string concertDate = 2;
+}
