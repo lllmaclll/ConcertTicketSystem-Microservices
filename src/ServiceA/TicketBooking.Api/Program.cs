@@ -23,10 +23,15 @@ using FluentValidation; // 🔥 แก้ Error: AddValidatorsFromAssembly
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- เพิ่มเพื่อให้ RabbitMQPublisher เข้าถึง Header ได้ ---
+// --- เพิ่มเพื่อให้ระบบสามารถเข้าถึง HttpContext ในชั้นอื่นได้ ---
+builder.Services.AddHttpContextAccessor();
+
 // --- Serilog Setup ---
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext() // 🔥 เพิ่มอันนี้เพื่อให้ Log จำรหัสติดตามได้
     .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day) // 🔥 เก็บเป็นไฟล์รายวัน
     .CreateLogger();
 builder.Host.UseSerilog(); // บอกให้ระบบใช้ Serilog แทนตัวเก่า
 
@@ -58,14 +63,16 @@ builder.Services.AddOpenApi(options =>
     {
         // ตั้งค่า Server URL ให้ชี้มาที่ Gateway (localhost:5177)
         // เพื่อให้ Browser ของเรายิงถูกที่
-        document.Servers = new List<OpenApiServer> 
-        { 
-            new OpenApiServer { Url = "http://localhost:5177" } 
+        document.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer { Url = "http://localhost:5177" }
         };
 
         document.Info.Title = "Concert Ticket Booking API";
         document.Info.Version = "v1";
+        document.Info.Description = "ระบบจองตั๋วคอนเสิร์ต Microservices (C# / Node.js / Redis / RabbitMQ)";
 
+        // ตั้งค่าระบบความปลอดภัย JWT
         var scheme = new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http,
@@ -85,15 +92,24 @@ builder.Services.AddOpenApi(options =>
         });
 
         // 🔥 เพิ่มส่วนนี้: ใส่ตัวอย่าง GUID ให้กับ Path Parameter ชื่อ 'id'
-        foreach (var path in document.Paths.Values)
+        // วนลูปเพื่อใส่คำอธิบาย Parameter {id} ให้ชัดเจนตามแต่ละเส้นทาง
+        foreach (var path in document.Paths)
         {
-            foreach (var operation in path.Operations.Values)
+            foreach (var operation in path.Value.Operations)
             {
-                // ใช้ operation.Parameters? (ใส่เครื่องหมายคำถาม)
-                var idParam = operation.Parameters?.FirstOrDefault(p => p.Name == "id");
+                var idParam = operation.Value.Parameters?.FirstOrDefault(p => p.Name == "id");
                 if (idParam != null)
                 {
-                    idParam.Example = new Microsoft.OpenApi.Any.OpenApiString("389c8942-024c-4e89-994c-851752763260");
+                    if (path.Key.Contains("booking/"))
+                        idParam.Description = "รหัสการจอง (Booking ID) ที่ได้รับหลังจากกดจองสำเร็จ";
+                    else if (path.Key.Contains("confirm-payment/"))
+                        idParam.Description = "รหัสตั๋วที่ต้องการชำระเงิน";
+                    else if (path.Key.Contains("cancel/"))
+                        idParam.Description = "รหัสตั๋วที่ต้องการยกเลิกเพื่อคืนที่นั่ง";
+                    else
+                        idParam.Description = "รหัสอ้างอิง (ID)";
+
+                    idParam.Example = new Microsoft.OpenApi.Any.OpenApiString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
                 }
             }
         }
@@ -105,7 +121,7 @@ builder.Services.AddOpenApi(options =>
     // ส่วนนี้จะช่วยให้ Scalar มีข้อมูลกรอกให้อัตโนมัติ
     options.AddSchemaTransformer((schema, context, cancellationToken) =>
     {
-        // สำหรับ UserDto
+        // 1. ตัวอย่างสำหรับ Login / Register
         if (context.JsonTypeInfo.Type == typeof(UserDto))
         {
             schema.Example = new Microsoft.OpenApi.Any.OpenApiObject
@@ -115,13 +131,28 @@ builder.Services.AddOpenApi(options =>
             };
         }
 
-        // สำหรับ BookTicketCommand
+        // 2. ตัวอย่างสำหรับการจองตั๋ว
         if (context.JsonTypeInfo.Type == typeof(BookTicketCommand))
         {
             schema.Example = new Microsoft.OpenApi.Any.OpenApiObject
             {
-                ["concertId"] = new Microsoft.OpenApi.Any.OpenApiString("11111111-2222-3333-4444-555555555555"),
-                ["seatNumber"] = new Microsoft.OpenApi.Any.OpenApiString("VIP-1")
+                ["concertId"] = new Microsoft.OpenApi.Any.OpenApiString("22222222-2222-2222-2222-222222222222"),
+                ["seatNumber"] = new Microsoft.OpenApi.Any.OpenApiString("A1")
+            };
+        }
+
+        // 3. ตัวอย่างสำหรับ Admin สร้างคอนเสิร์ตใหม่
+        if (context.JsonTypeInfo.Type == typeof(CreateConcertCommand))
+        {
+            schema.Example = new Microsoft.OpenApi.Any.OpenApiObject
+            {
+                ["name"] = new Microsoft.OpenApi.Any.OpenApiString("LISA World Tour 2026"),
+                ["date"] = new Microsoft.OpenApi.Any.OpenApiString(DateTime.Now.AddMonths(6).ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                ["vipPrice"] = new Microsoft.OpenApi.Any.OpenApiDouble(7500),
+                ["gaPrice"] = new Microsoft.OpenApi.Any.OpenApiDouble(3500),
+                ["vipCapacity"] = new Microsoft.OpenApi.Any.OpenApiInteger(40),
+                ["gaCapacity"] = new Microsoft.OpenApi.Any.OpenApiInteger(60)
+                // หมายเหตุ: PosterFile เป็นไฟล์ ไม่ต้องใส่ Example ใน JSON
             };
         }
 
@@ -205,18 +236,21 @@ builder.Services.AddAuthentication(x =>
             context.HandleResponse(); // ปิดระบบพ่น Error เดิม
             context.Response.StatusCode = 401;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new {
+            await context.Response.WriteAsJsonAsync(new
+            {
                 success = false,
                 message = "คุณไม่มีสิทธิ์เข้าถึง กรุณาเข้าสู่ระบบก่อน",
                 data = default(object) // 🔥 ใช้ default(object) เพื่อแก้ Warning
             });
         },
-        OnForbidden = async context => { // 🔥 เพิ่มเคส 403 (มีบัตรแต่เข้าโซนนี้ไม่ได้)
+        OnForbidden = async context =>
+        { // 🔥 เพิ่มเคส 403 (มีบัตรแต่เข้าโซนนี้ไม่ได้)
             context.Response.StatusCode = 403;
-            await context.Response.WriteAsJsonAsync(new { 
-                success = false, 
-                message = "คุณไม่มีสิทธิ์ดำเนินการในส่วนนี้", 
-                data = default(object) 
+            await context.Response.WriteAsJsonAsync(new
+            {
+                success = false,
+                message = "คุณไม่มีสิทธิ์ดำเนินการในส่วนนี้",
+                data = default(object)
             });
         }
     };
@@ -239,7 +273,21 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TicketBooking
 // บอกให้ระบบกวาดหา Validator ทั้งหมดในชั้น Application มาลงทะเบียน
 builder.Services.AddValidatorsFromAssembly(typeof(TicketBooking.Application.Commands.BookTicketCommandValidator).Assembly);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // อนุญาตหน้าบ้าน
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
+
+// 2. ในส่วน Middleware (ต้องวางก่อน UseAuthentication และ MapControllers)
+app.UseCors("AllowFrontend"); // 🔥 วางตรงนี้!
 
 // Correlation ID (บนสุดเพื่อให้ทุกอย่างมี ID)
 app.Use(async (context, next) =>

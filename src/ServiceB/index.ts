@@ -64,10 +64,11 @@ async function startWorker() {
     channel.consume(queue, (msg) => {
       if (msg !== null) {
         const data = JSON.parse(msg.content.toString());
+        const cid = data.CorrelationId || "N/A"; // 🔥 ดึง Correlation ID
 
         // 3. ทันทีที่ได้งานจาก RabbitMQ ให้โทร gRPC ไปถาม C# ทันที! (โทร gRPC ไปถามข้อมูลคอนเสิร์ต)
         grpcClient.GetConcertDetail(
-          { concertId: "11111111-2222-3333-4444-555555555555" },
+          { concertId: data.ConcertId },
           async (err: any, response: any) => {
             if (err) {
               console.error("gRPC Error:", err);
@@ -76,11 +77,11 @@ async function startWorker() {
 
             // --- LOG แบบละเอียดที่คุณต้องการ ---
             console.log(`-------------------------------------------------`);
-            console.log(`[x] 📥 ได้รับงานใหม่จาก RabbitMQ`);
+            console.log(`[CID: ${cid}] 📥 ได้รับงานใหม่จาก RabbitMQ (Reservation)`);
             console.log(`    - 👤 UserId (จาก Token): ${data.UserId}`);
             console.log(`    - 🪑 ที่นั่ง: ${data.SeatNumber}`);
             console.log(`    - 🎫 Concert ID: ${data.ConcertId}`);
-            console.log(`[+] 📞 ข้อมูลที่ดึงเพิ่มผ่าน gRPC:`);
+            console.log(`[CID: ${cid}] [+] 📞 ข้อมูลที่ดึงเพิ่มผ่าน gRPC:`);
             console.log(`    - 🎵 ชื่อคอนเสิร์ต: ${response.concertName}`);
             console.log(`    - 📅 วันที่แสดง: ${response.concertDate}`);
 
@@ -105,9 +106,9 @@ async function startWorker() {
                   </div>
               `,
               });
-              console.log(`[v] 📧 ส่งอีเมลเข้า Mailtrap สำเร็จ!`);
+              console.log(`[CID: ${cid}] [v] 📧 ส่งอีเมลยืนยันการจองสำเร็จ!`);
             } catch (mailErr) {
-              console.error("❌ Mail Error:", mailErr);
+              console.error(`[CID: ${cid}] ❌ Mail Error:`, mailErr);
             }
 
             channel.ack(msg);
@@ -123,8 +124,10 @@ async function startWorker() {
     channel.consume(paidQueue, async (msg) => {
         if (msg !== null) {
             const data = JSON.parse(msg.content.toString());
+            const cid = data.CorrelationId || "N/A"; // 🔥 ดึง Correlation ID
+
             console.log(`-------------------------------------------------`);
-            console.log(`[VIP] 🎫 กำลังส่ง E-Ticket ให้ลูกค้า: ${data.UserId}`);
+            console.log(`[CID: ${cid}] [VIP] 🎫 กำลังส่ง E-Ticket ให้ลูกค้า: ${data.UserId}`);
 
             try {
                 await transporter.sendMail({
@@ -145,8 +148,8 @@ async function startWorker() {
                         </div>
                     `
                 });
-                console.log(`[v] ✅ ส่ง E-Ticket เข้า Mailtrap สำเร็จ!`);
-            } catch (mailErr) { console.error("Mail Error:", mailErr); }
+                console.log(`[CID: ${cid}] [v] ✅ ส่ง E-Ticket สำเร็จ!`);
+            } catch (mailErr) { console.error(`[CID: ${cid}] ❌ Mail Error:`, mailErr); }
             channel.ack(msg);
         }
     });

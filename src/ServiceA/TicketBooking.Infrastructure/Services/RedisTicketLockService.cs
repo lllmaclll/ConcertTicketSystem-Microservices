@@ -25,5 +25,13 @@ namespace TicketBooking.Infrastructure.Services
             // มันจะยอมสร้าง Key นี้และคืนค่า true ก็ต่อเมื่อ "ยังไม่มี Key นี้อยู่เท่านั้น" (ระดับ Millisecond)
             return await db.StringSetAsync(lockKey, "locked", expiration, When.NotExists);
         }
+
+        // 🔥 เพิ่มฟังก์ชันลบ Key
+        public async Task ReleaseLockAsync(Guid concertId, string seatNumber)
+        {
+            var db = _redis.GetDatabase();
+            string lockKey = $"ticket_lock:{concertId}:{seatNumber}";
+            await db.KeyDeleteAsync(lockKey);
+        }
     }
 }

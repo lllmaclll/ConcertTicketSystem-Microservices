@@ -3,13 +3,22 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. เพิ่มใน builder.Services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
 // --- ตั้งค่ากฎการจำกัด Request (Rate Limit Policy) ---
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("booking-limit", opt =>
     {
         opt.Window = TimeSpan.FromSeconds(10); // ในเวลา 10 วินาที
-        opt.PermitLimit = 3;                  // ให้ยิงได้แค่ 3 ครั้ง
+        opt.PermitLimit = 5000; // 🔥 เปลี่ยนจาก 3 เป็น 100 เพื่อให้โหลดหน้าเว็บได้ลื่นไหล เพิ่มโควตาให้ยิงได้เยอะๆ เพื่อดูขีดจำกัด Service A
         opt.QueueLimit = 0;
         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
@@ -33,6 +42,9 @@ builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+// 2. ใช้ก่อน MapReverseProxy
+app.UseCors("AllowAll"); // 🔥 ปลดล็อกด่านหน้า
 
 app.Use(async (context, next) =>
 {

@@ -11,6 +11,6 @@ namespace TicketBooking.Domain.Entities
         public string SeatNumber { get; set; } = string.Empty; // เช่น A1, B12
         public TicketStatus Status { get; set; } = TicketStatus.Available;
         public Guid? UserId { get; set; } // ใครเป็นคนจอง
-         public DateTime? CreatedAt { get; set; } // เก็บเวลาที่เริ่มจอง (Locked)
+        public DateTime? CreatedAt { get; set; } // เก็บเวลาที่เริ่มจอง (Locked)
     }
 }
