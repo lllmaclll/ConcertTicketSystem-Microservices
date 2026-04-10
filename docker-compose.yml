@@ -80,7 +80,7 @@ services:
       - "5019:5019"
     volumes:
       - ./src/ServiceA/TicketBooking.Api/wwwroot/posters:/app/wwwroot/posters # เชื่อมโฟลเดอร์ posters ในเครื่อง เข้ากับโฟลเดอร์ใน Docker
-      - ./logs/service-a:/app/Logs # 🔥 เพิ่มบรรทัดนี้เพื่อเก็บไฟล์ Log
+      - ./logs/service-a:/app/Logs # 🔥 เก็บไฟล์ Log ไว้ในโฟลเดอร์ logs นอก Docker
 
   service-b:
     build: ./src/ServiceB

@@ -110,3 +110,7 @@ export const updateConcert = async (id: string, formData: FormData, token: strin
   });
   return res.json();
 };
+
+export const registerUser = async (data: any) => {
+  return request('/api/Auth/register', { method: 'POST', body: JSON.stringify(data) });
+};
