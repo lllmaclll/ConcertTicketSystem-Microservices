@@ -78,6 +78,8 @@ services:
     ports:
       - "5018:5018"
       - "5019:5019"
+    volumes:
+      - ./src/ServiceA/TicketBooking.Api/wwwroot/posters:/app/wwwroot/posters # เชื่อมโฟลเดอร์ posters ในเครื่อง เข้ากับโฟลเดอร์ใน Docker
 
   service-b:
     build: ./src/ServiceB
@@ -103,6 +105,16 @@ services:
       - "16686:16686" # หน้าเว็บ UI สำหรับดูกราฟ
       - "4317:4317"   # พอร์ตสำหรับรับข้อมูลจาก C# / Node.js (OTLP)
     restart: always
+
+  frontend:
+    build: ./src/frontend
+    container_name: ticket_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5177 # ยิงผ่าน Gateway
+    depends_on:
+      - api-gateway
 
 volumes:
   postgres_data:
