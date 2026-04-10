@@ -16,13 +16,14 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: '9.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore src/ServiceA/TicketBooking.sln
+      # ใช้คำสั่งหาไฟล์ sln อัตโนมัติ เพื่อป้องกันปัญหาเรื่อง Path
+      run: dotnet restore $(find src -name "*.sln")
 
     - name: Build
-      run: dotnet build src/ServiceA/TicketBooking.sln --no-restore
+      run: dotnet build $(find src -name "*.sln") --no-restore -c Release
 
     - name: Run Unit Tests
-      run: dotnet test src/ServiceA/TicketBooking.sln --no-build --verbosity normal
+      run: dotnet test $(find src -name "*.sln") --no-build -c Release --verbosity normal
