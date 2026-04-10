@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   Trash2,
+  Edit3,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
@@ -30,6 +31,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ConcertCardSkeleton } from "@/components/ConcertCardSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomePage() {
   const router = useRouter();
@@ -115,11 +118,25 @@ export default function HomePage() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
-        <p className="text-zinc-500 font-bold tracking-widest animate-pulse">
-          LOADING EVENTS...
-        </p>
+      <div className="min-h-screen bg-black text-white">
+        {/* Navbar จำลองคงไว้เพื่อให้ดูเหมือนเว็บโหลดแค่เนื้อหา */}
+        <nav className="border-b border-white/5 py-5 px-8 flex justify-between items-center bg-black/60 backdrop-blur-xl">
+          <h2 className="text-2xl font-black text-zinc-800">TICKET-HUB</h2>
+        </nav>
+
+        <main className="p-8 max-w-7xl mx-auto">
+          <header className="mb-16">
+            <Skeleton className="h-16 w-1/2 bg-zinc-900 mb-4" />
+            <Skeleton className="h-6 w-1/3 bg-zinc-900" />
+          </header>
+
+          {/* 🔥 แสดง Skeleton 6 ใบระหว่างรอข้อมูล */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {[...Array(6)].map((_, i) => (
+              <ConcertCardSkeleton key={i} />
+            ))}
+          </div>
+        </main>
       </div>
     );
 
@@ -246,7 +263,7 @@ export default function HomePage() {
               </CardContent>
 
               <CardFooter className="p-8 pt-0 mt-auto bg-transparent border-none flex flex-col gap-4">
-                {/* 1. ปุ่มจองตั๋ว */}
+                {/* 1. ปุ่มจองที่นั่ง (ทุกคนเห็น) */}
                 <Button
                   onClick={() => handleBooking(concert.id)}
                   className="w-full bg-blue-600 text-white hover:bg-blue-400 cursor-pointer font-black py-8 text-xl rounded-2xl shadow-xl shadow-blue-900/20 active:scale-95 transition-all"
@@ -254,44 +271,54 @@ export default function HomePage() {
                   <Ticket className="mr-3 w-6 h-6" /> จองที่นั่งเลย
                 </Button>
 
-                {/* 2. ปุ่มลบ (สำหรับ Admin) - ปรับให้สูงและใหญ่เท่าปุ่มจอง */}
+                {/* 2. ปุ่มลบคอนเสิร์ต (เฉพาะ Admin เห็น) - ปรับสไตล์ให้เหมือนปุ่มจองแต่เป็นสีแดง */}
                 {isAdmin && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white border border-red-500/20 cursor-pointer font-black py-8 text-xl rounded-2xl transition-all active:scale-95 shadow-lg shadow-red-900/10"
-                      >
-                        <Trash2 className="mr-3 w-6 h-6" /> ลบคอนเสิร์ตนี้
-                      </Button>
-                    </AlertDialogTrigger>
+                  <>
+                    {/* 2. 🔥 ปุ่มแก้ไขคอนเสิร์ต (เฉพาะ Admin) - สีเหลือง Amber */}
+                    <Button
+                      onClick={() => router.push(`/admin/edit/${concert.id}`)}
+                      className="w-full bg-amber-600/10 text-amber-500 hover:bg-amber-600 hover:text-white border border-amber-500/20 cursor-pointer font-black py-8 text-xl rounded-2xl active:scale-95 transition-all"
+                    >
+                      <Edit3 className="mr-3 w-6 h-6" /> แก้ไขคอนเสิร์ต
+                    </Button>
 
-                    <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-[2.5rem] p-0 overflow-hidden max-w-[400px] shadow-2xl">
-                      <div className="p-10 text-center">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-center">
-                            ยืนยันการลบ?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription className="text-zinc-400 pt-4 text-center leading-relaxed">
-                            การลบ "{concert.name}"
-                            จะทำให้ข้อมูลที่นั่งและประวัติการจองทั้งหมดหายไปถาวร
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                      </div>
-
-                      <AlertDialogFooter className="bg-zinc-800/50 p-8 border-t border-zinc-800 gap-3">
-                        <AlertDialogCancel className="flex-1 bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white rounded-2xl py-7 font-bold cursor-pointer transition-all">
-                          ยกเลิก
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(concert.id)}
-                          className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl py-7 shadow-lg shadow-red-900/30 cursor-pointer transition-all active:scale-95"
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white border border-red-500/20 cursor-pointer font-black py-8 text-xl rounded-2xl active:scale-95 transition-all "
                         >
-                          ยืนยันลบทิ้ง
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Trash2 className="mr-3 w-6 h-6" /> ลบคอนเสิร์ตนี้
+                        </Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-[2.5rem] p-0 overflow-hidden max-w-[400px] shadow-2xl">
+                        <div className="p-10 text-center">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-3xl font-black uppercase italic tracking-tighter text-center">
+                              ยืนยันการลบ?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-zinc-400 pt-4 text-center leading-relaxed">
+                              การลบ "{concert.name}"
+                              จะทำให้ข้อมูลที่นั่งและประวัติการจองทั้งหมดหายไปถาวร
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                        </div>
+
+                        <AlertDialogFooter className="bg-zinc-800/50 p-8 border-t border-zinc-800 gap-3">
+                          <AlertDialogCancel className="flex-1 bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white rounded-2xl py-7 font-bold cursor-pointer transition-all">
+                            ยกเลิก
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(concert.id)}
+                            className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl py-7 shadow-lg shadow-red-900/30 cursor-pointer transition-all active:scale-95"
+                          >
+                            ยืนยันลบทิ้ง
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 )}
               </CardFooter>
             </Card>

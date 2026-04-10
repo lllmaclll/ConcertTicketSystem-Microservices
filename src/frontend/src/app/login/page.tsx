@@ -16,6 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LogIn, Loader2 } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod/src/index.js";
+import { loginSchema } from "@/lib/validations";
+import { useForm } from "react-hook-form";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -23,6 +26,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,26 +72,26 @@ export default function LoginPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                placeholder="tony"
-                className="bg-zinc-800 border-zinc-700"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
+              <Label>Username</Label>
+              <Input {...register("username")} className="..." />
+              {errors.username && (
+                <p className="text-red-500 text-xs">
+                  {errors.username.message as string}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label>Password</Label>
               <Input
-                id="password"
+                {...register("password")}
                 type="password"
-                className="bg-zinc-800 border-zinc-700"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                className="..."
               />
+              {errors.password && (
+                <p className="text-red-500 text-xs">
+                  {errors.password.message as string}
+                </p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="bg-transparent border-none">

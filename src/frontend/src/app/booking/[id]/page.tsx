@@ -16,6 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BookingPage() {
   const { id } = useParams();
@@ -80,11 +81,22 @@ export default function BookingPage() {
 
   if (loading)
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
-        <Loader2 className="animate-spin w-10 h-10 text-blue-500 mb-4" />
-        <p className="font-bold tracking-widest text-zinc-500">
-          LOADING SEATING PLAN...
-        </p>
+      <div className="min-h-screen bg-black p-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+          {/* ฝั่งซ้ายจำลอง */}
+          <div className="lg:col-span-3 space-y-6">
+            <Skeleton className="aspect-[3/4] rounded-[2rem] bg-zinc-900" />
+            <Skeleton className="h-10 w-full bg-zinc-900" />
+          </div>
+          {/* ฝั่งขวาจำลอง (ผังที่นั่ง) */}
+          <div className="lg:col-span-6">
+            <Skeleton className="h-[500px] w-full rounded-[3rem] bg-zinc-900" />
+          </div>
+          {/* ฝั่งขวาสรุปจำลอง */}
+          <div className="lg:col-span-3">
+            <Skeleton className="h-64 w-full rounded-3xl bg-zinc-900" />
+          </div>
+        </div>
       </div>
     );
 

@@ -100,3 +100,13 @@ export const deleteConcert = async (id: string, token: string) => {
   });
   return res.json();
 };
+
+// ใน api.ts เพิ่มฟังก์ชัน PUT
+export const updateConcert = async (id: string, formData: FormData, token: string) => {
+  const res = await fetch(`http://localhost:5177/api/Admin/concerts/${id}`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+  return res.json();
+};

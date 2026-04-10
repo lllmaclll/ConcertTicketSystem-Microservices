@@ -26,10 +26,18 @@ public class AdminController : ControllerBase
     {
         // 🔥 ระบุประเภท bool ให้ชัดเจนเพื่อแก้ปัญหา Type Mismatch
         bool result = await _mediator.Send(new DeleteConcertCommand(id));
-        
+
         if (result)
             return Ok(ApiResponse<object>.Ok(null, "ลบคอนเสิร์ตสำเร็จ"));
-            
+
         return NotFound(ApiResponse<object>.Fail("ไม่พบคอนเสิร์ตที่ต้องการลบ"));
+    }
+
+    [HttpPut("concerts/{id}")]
+    public async Task<IActionResult> UpdateConcert(Guid id, [FromForm] UpdateConcertCommand command)
+    {
+        if (id != command.Id) return BadRequest();
+        var result = await _mediator.Send(command);
+        return result ? Ok(ApiResponse<object>.Ok(null, "แก้ไขสำเร็จ")) : NotFound();
     }
 }
